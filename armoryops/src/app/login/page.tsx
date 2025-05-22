@@ -79,9 +79,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md p-8">
-        <h2 className="mb-6 text-2xl font-bold text-center">
+    <div className="flex min-h-screen items-center justify-center bg-white text-black">
+      <Card className="w-full max-w-md p-8 bg-white text-black">
+        <h2 className="mb-6 text-2xl font-bold text-center text-black">
           {mode === "login" && "Sign In"}
           {mode === "signup" && "Sign Up"}
           {mode === "reset" && "Reset Password"}
@@ -96,7 +96,7 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="text-black placeholder:text-gray-500"
+              className="bg-white text-black placeholder:text-gray-500"
             />
             <Input
               type="password"
@@ -104,7 +104,7 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="text-black placeholder:text-gray-500"
+              className="bg-white text-black placeholder:text-gray-500"
             />
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
@@ -137,7 +137,7 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="text-black placeholder:text-gray-500"
+              className="bg-white text-black placeholder:text-gray-500"
             />
             <Input
               type="password"
@@ -145,7 +145,7 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="text-black placeholder:text-gray-500"
+              className="bg-white text-black placeholder:text-gray-500"
             />
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing up..." : "Sign Up"}
@@ -170,7 +170,7 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="text-black placeholder:text-gray-500"
+              className="bg-white text-black placeholder:text-gray-500"
             />
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Sending..." : "Send Reset Link"}
