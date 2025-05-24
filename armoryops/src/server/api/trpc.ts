@@ -10,8 +10,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 import { db } from "~/server/db";
 
@@ -28,14 +27,22 @@ import { db } from "~/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value;
+          return opts.headers.get('cookie')?.split('; ').find(c => c.startsWith(`${name}=`))?.split('=')[1];
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // This is a simplified stub. In a real Next.js API route/server action that
+          // constructs a Response, you would use the Response object to set cookies.
+          // console.log(`tRPC context: Would set cookie ${name}=${value}`, options);
+        },
+        remove(name: string, options: CookieOptions) {
+          // Similar to set, this is a stub in the tRPC context.
+          // console.log(`tRPC context: Would remove cookie ${name}`, options);
         },
       },
     }
@@ -46,7 +53,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
   return {
     db,
     session,
-    ...opts,
+    headers: opts.headers,
   };
 };
 

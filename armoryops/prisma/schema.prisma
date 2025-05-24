@@ -74,11 +74,14 @@ model VerificationToken {
 }
 
 model Batch {
-  id           String           @id @default(uuid())
-  status       BatchStatus      @default(PENDING)
+  id              String           @id @default(uuid())
+  name            String           // Batch Number, e.g., "130"
+  productModel    String           // Added: From design
+  quantity        Int              // Added: From design
+  status          BatchStatus      @default(PENDING)
   serializedItems SerializedItem[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 enum BatchStatus {

@@ -1,7 +1,12 @@
 import "~/styles/globals.css";
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter'; // For Next.js App Router
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from './theme'; // Your custom theme
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
+// import { Provider } from "~/components/ui/provider"; // Removed Chakra Provider import
 
 import { TRPCReactProvider } from "~/trpc/react";
 
@@ -20,9 +25,17 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={geist.variable}>
+    <html lang="en" className={geist.variable} /* suppressHydrationWarning might be needed if issues arise */ >
       <body>
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
+          <ThemeProvider theme={theme}>
+            {/* CssBaseline kickstarts an elegant, consistent, and simple baseline to build upon. */}
+            <CssBaseline />
+            {/* <Provider defaultTheme="system" storageKey="chakra-ui-color-mode"> */}
+              <TRPCReactProvider>{children}</TRPCReactProvider>
+            {/* </Provider> */}
+          </ThemeProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

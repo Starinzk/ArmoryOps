@@ -6,41 +6,61 @@ export const batchRouter = createTRPCRouter({
     .input(
       z.object({
         name: z.string().min(1),
-        serialNumbers: z.array(z.string().min(1)),
+        productModel: z.string().min(1),
+        quantity: z.number().int().positive(),
+        serialNumbers: z.array(z.string().min(1)).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Check for duplicate serial numbers in the input
-      const uniqueSerials = new Set(input.serialNumbers);
-      if (uniqueSerials.size !== input.serialNumbers.length) {
-        throw new Error("Duplicate serial numbers in input array");
+      let itemsToCreate: { serialNumber: string; status: string }[] = [];
+
+      if (input.serialNumbers && input.serialNumbers.length > 0) {
+        if (input.serialNumbers.length !== input.quantity) {
+          throw new Error(
+            `The number of serial numbers (${input.serialNumbers.length}) must match the specified quantity (${input.quantity}).`
+          );
+        }
+
+        const uniqueSerials = new Set(input.serialNumbers);
+        if (uniqueSerials.size !== input.serialNumbers.length) {
+          throw new Error("Duplicate serial numbers in input array.");
+        }
+
+        const existing = await ctx.db.serializedItem.findMany({
+          where: {
+            serialNumber: { in: input.serialNumbers },
+          },
+          select: { serialNumber: true },
+        });
+        if (existing.length > 0) {
+          throw new Error(
+            `Serial numbers already exist: ${existing
+              .map((e: { serialNumber: string }) => e.serialNumber)
+              .join(", ")}`
+          );
+        }
+        itemsToCreate = input.serialNumbers.map((serial) => ({
+          serialNumber: serial,
+          status: "NOT_STARTED",
+        }));
+      } else {
+        // If serial numbers are NOT provided, do not create items yet.
+        // The design says "Leave empty to assign serial numbers later."
+        // Optionally, here you could auto-generate placeholder serials if desired,
+        // but current logic will skip item creation.
       }
 
-      // Check for existing serial numbers in the database
-      const existing = await ctx.db.serializedItem.findMany({
-        where: {
-          serialNumber: { in: input.serialNumbers },
-        },
-        select: { serialNumber: true },
-      });
-      if (existing.length > 0) {
-        throw new Error(
-          `Serial numbers already exist: ${existing
-            .map((e: { serialNumber: string }) => e.serialNumber)
-            .join(", ")}`
-        );
-      }
-
-      // Create the batch and linked serialized items
       const batch = await ctx.db.batch.create({
         data: {
+          name: input.name,
+          productModel: input.productModel,
+          quantity: input.quantity,
           status: "PENDING",
-          serializedItems: {
-            create: input.serialNumbers.map((serial) => ({
-              serialNumber: serial,
-              status: "NOT_STARTED",
-            })),
-          },
+          ...(itemsToCreate.length > 0 && {
+            serializedItems: {
+              create: itemsToCreate,
+            },
+          }),
         },
         include: { serializedItems: true },
       });
