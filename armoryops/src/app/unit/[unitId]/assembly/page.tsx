@@ -17,7 +17,8 @@ import {
   Checkbox,
   FormControlLabel,
   FormGroup,
-  Collapse
+  Collapse,
+  TextField
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { AssemblyStage } from '@prisma/client';
@@ -80,9 +81,26 @@ export default function AssemblyChecklistPage({}: AssemblyPageProps) {
     }
   });
 
+  const rejectStageMutation = api.assembly.rejectStage.useMutation({
+    onSuccess: async () => {
+      await utils.assembly.getAssemblyDetailsByUnitId.invalidate({ unitId });
+      // TODO: Add toast notification for success (stage rejected)
+      setShowRejectForm(false); // Hide form after successful rejection
+      setRejectionNotes('');
+      setMutationError(null);
+    },
+    onError: (err) => {
+      // TODO: Add toast notification for error
+      console.error("Failed to reject stage:", err);
+      setMutationError(err.message); // Display this error near the form
+    }
+  });
+
   // State for current stage's checklist items
   const [checklistState, setChecklistState] = useState<Record<string, boolean>>({});
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [showRejectForm, setShowRejectForm] = useState(false); // State for rejection form visibility
+  const [rejectionNotes, setRejectionNotes] = useState(''); // State for rejection notes
 
   // Effect to initialize/reset checklist when current stage changes or data loads
   useEffect(() => {
@@ -114,6 +132,25 @@ export default function AssemblyChecklistPage({}: AssemblyPageProps) {
     }
     setMutationError(null);
     markCompleteMutation.mutate({ unitId, stage: unitDetails.currentStage as AssemblyStage });
+  };
+
+  const handleRejectStageClick = () => {
+    setShowRejectForm(true);
+    setMutationError(null); // Clear previous mutation errors when opening form
+  };
+
+  const handleSubmitRejection = () => {
+    if (!unitDetails?.currentStage) return;
+    if (!rejectionNotes.trim()) {
+      setMutationError("Rejection notes are required.");
+      return;
+    }
+    setMutationError(null);
+    rejectStageMutation.mutate({
+      unitId,
+      stage: unitDetails.currentStage as AssemblyStage,
+      notes: rejectionNotes.trim(),
+    });
   };
 
   if (isLoading || !unitId) {
@@ -204,12 +241,51 @@ export default function AssemblyChecklistPage({}: AssemblyPageProps) {
                   <Button 
                     variant="contained" 
                     onClick={handleMarkStageComplete} 
-                    disabled={markCompleteMutation.isPending}
-                    sx={{mt: 2}}
+                    disabled={markCompleteMutation.isPending || showRejectForm}
+                    sx={{mt: 2, mr: 1}}
                   >
                     {markCompleteMutation.isPending ? <CircularProgress size={24}/> : 'Mark Stage Complete'}
                   </Button>
-                  {/* TODO: Add Rejection Input/Button here */}
+
+                  <Button 
+                    variant="outlined" 
+                    color="error" 
+                    onClick={handleRejectStageClick} 
+                    disabled={rejectStageMutation.isPending || markCompleteMutation.isPending || showRejectForm}
+                    sx={{mt: 2}}
+                  >
+                    Reject Stage
+                  </Button>
+
+                  <Collapse in={showRejectForm} timeout="auto" unmountOnExit>
+                    <Box sx={{mt: 2, p:2, border: '1px solid #f5c6cb', borderRadius: '4px', backgroundColor: '#f8d7da'}}>
+                      <Typography variant="subtitle2" sx={{fontWeight:'medium', color: '#721c24'}}>Provide Rejection Notes:</Typography>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        value={rejectionNotes}
+                        onChange={(e) => setRejectionNotes(e.target.value)}
+                        placeholder="Enter reasons for rejection..."
+                        variant="outlined"
+                        sx={{mt: 1, backgroundColor: 'white'}}
+                        error={!!mutationError && rejectionNotes.trim() === ''}
+                      />
+                      <Button 
+                        variant="contained" 
+                        color="error" 
+                        onClick={handleSubmitRejection} 
+                        disabled={rejectStageMutation.isPending}
+                        sx={{mt: 2, mr: 1}}
+                      >
+                        {rejectStageMutation.isPending ? <CircularProgress size={24} color="inherit"/> : 'Submit Rejection'}
+                      </Button>
+                      <Button variant="outlined" onClick={() => {setShowRejectForm(false); setMutationError(null);}} sx={{mt:2}} disabled={rejectStageMutation.isPending}>
+                        Cancel
+                      </Button>
+                      {mutationError && <Alert severity="error" sx={{mt:1}}>{mutationError}</Alert>}
+                    </Box>
+                  </Collapse>
                 </Box>
               </Collapse>
             </Box>
