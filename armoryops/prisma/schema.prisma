@@ -75,14 +75,18 @@ model VerificationToken {
 }
 
 model Batch {
-  id              String           @id @default(uuid())
-  name            String           // Batch Number, e.g., "130"
-  productModel    String           // Added: From design
-  quantity        Int              // Added: From design
-  status          BatchStatus      @default(PENDING)
+  id String @id @default(cuid())
+  name String
+  quantity Int
+  status BatchStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   serializedItems SerializedItem[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+
+  productId String // Foreign key for Product
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([productId])
 }
 
 enum BatchStatus {
@@ -106,6 +110,18 @@ enum ItemStatus {
   NOT_STARTED
   IN_PROGRESS
   COMPLETE
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  modelNumber String   @unique
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  batches Batch[] // A product can be part of many batches
 }
 
 enum UserRole {
