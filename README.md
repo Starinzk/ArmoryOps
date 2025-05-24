@@ -1,44 +1,40 @@
-# Firearms Inventory App
+# ArmoryOps
 
-An internal-use application designed to support the operations of a firearms manufacturing business. This tool manages serialized parts, tracks batch progress, monitors assembly stages, and enforces quality control throughout the production process.
+A modern web application for managing firearm assembly, batch tracking, and serialized item lifecycles. Built with Next.js, Prisma, tRPC, and Material UI.
 
-## Status
+## Overview
 
-**Private | In Development**  
-This project is under active development and not open to the public.
+ArmoryOps is designed to streamline the firearm assembly process, providing tools for:
+- Managing production batches.
+- Tracking individual serialized items through multiple assembly stages.
+- Offering a dedicated interface for assemblers to quickly update unit status.
+- Displaying key performance indicators (KPIs) on an assembly dashboard.
 
 ## Tech Stack
 
-- Language: TypeScript  
-- Backend: Node.js with Express (RESTful API)  
-- Frontend: React with Tailwind CSS  
-- Database: PostgreSQL (using Prisma or Drizzle ORM)
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Database:** PostgreSQL
+- **ORM:** Prisma
+- **API Layer:** tRPC (for type-safe client-server communication)
+- **Authentication:** Supabase Auth (Email/Password, Email Verification, Password Reset)
+- **UI Components:**
+    - Material UI (MUI) & MUI X (for core layout, components, icons, and advanced components like Data Grid if used)
+    - `@mui/lab` (for components like `LoadingButton`)
+    - shadcn/ui (potentially for specific components, if still in use alongside MUI)
+- **Styling:** Tailwind CSS (if still primary, or alongside MUI's styling solutions like Emotion/Styled Components)
+- **State Management:** React Context/Hooks, tRPC query caching
 
-## Features (Planned)
+## Key Features
 
-- Serial number and batch tracking  
-- Custom part configurations per product  
-- Assembly progress monitoring  
-- Quality control with pass/fail logging  
-- Reorder and inventory level management  
-- QR code generation and packing slip printing
-
-## Development Tools
-
-This project leverages the following tools during development:
-
-- [Cursor](https://www.cursor.sh) – AI-powered code editor for fast iteration and refactoring  
-- GitHub – Version control and remote repo hosting  
-- PostgreSQL GUI (e.g., TablePlus or pgAdmin) – For local DB visualization  
-- Prisma/Drizzle ORM – Schema definition and type-safe DB access  
-- VS Code (optional) – For manual editing outside of Cursor
-
-## Project Structure (Example)
-
-## Getting Started (Coming Soon)
-
-Instructions for local setup and running the app will go here.
-
-## License
-
-This is a private project and is not licensed for public use.
+- 🔐 **Secure User Authentication:** Role-based access control can be layered on Supabase auth.
+- 🏭 **Product Management:** Define product models that batches are based on.
+- 📦 **Batch Management:**
+    - Create and manage production batches with associated product models and quantities.
+    - View a list of all batches with progress summaries.
+    - Detailed batch view showing all serialized items, their status, and current assembly stage.
+- 🔩 **Serialized Item Tracking:**
+    - Automatic generation and tracking of unique serial numbers (or manual input).
+    - Prevention of duplicate serial numbers.
+- ✨ **Assembly Workflow:**
+    - **Unit Assembly Checklist Page
