@@ -110,7 +110,7 @@ export default function BatchDetailPage() {
                 <TableCell sx={{fontWeight: 'bold'}}>Serial Number</TableCell>
                 <TableCell sx={{fontWeight: 'bold'}}>Status</TableCell>
                 <TableCell sx={{fontWeight: 'bold'}}>Current Stage</TableCell>
-                {/* Add more headers if needed, e.g., Last Updated */}
+                <TableCell sx={{fontWeight: 'bold'}}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -129,6 +129,15 @@ export default function BatchDetailPage() {
                     <Chip label={item.status} color={getStatusChipColor(item.status)} size="small" />
                   </TableCell>
                   <TableCell>{item.currentStage ?? 'N/A'}</TableCell>
+                  <TableCell>
+                    <Button 
+                      variant="contained" 
+                      size="small"
+                      onClick={() => router.push(`/unit/${item.id}/assembly`)}
+                    >
+                      {item.currentStage ? 'Continue Assembly' : 'Start Assembly'}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

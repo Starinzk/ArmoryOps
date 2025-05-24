@@ -63,6 +63,7 @@ model User {
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
+    unitStageLogs UnitStageLog[]
     role          UserRole  @default(USER)
 }
 
@@ -101,9 +102,10 @@ model SerializedItem {
   batch        Batch          @relation(fields: [batchId], references: [id])
   batchId      String
   status       ItemStatus     @default(NOT_STARTED)
-  currentStage String?
+  currentStage AssemblyStage?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  unitStageLogs UnitStageLog[]
 }
 
 enum ItemStatus {
@@ -130,4 +132,40 @@ enum UserRole {
   INVENTORY
   QC
   USER
+}
+
+// New Enums for Assembly Flow
+enum AssemblyStage {
+  LAP_AND_CLEAN
+  PIN_EJECTOR
+  INSTALL_EXTRACTOR
+  FIT_BARREL
+  TRIGGER_ASSEMBLY
+  BUILD_SLIDE
+  ASSEMBLE_LOWER
+  MATE_SLIDE_FRAME
+  FUNCTION_TEST
+  FINAL_QC
+  PACKAGE_AND_SERIALIZE
+}
+
+enum UnitStageStatus {
+  COMPLETE
+  REJECTED
+}
+
+// New Table for Unit Stage Logs
+model UnitStageLog {
+  id        String   @id @default(cuid())
+  unit      SerializedItem @relation(fields: [unitId], references: [id])
+  unitId    String
+  stage     AssemblyStage
+  status    UnitStageStatus
+  notes     String?
+  completedByUser User @relation(fields: [completedById], references: [id])
+  completedById String
+  timestamp DateTime @default(now())
+
+  @@index([unitId])
+  @@index([completedById])
 }
