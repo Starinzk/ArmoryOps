@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { type ItemStatus } from "@prisma/client";
 
 export const batchRouter = createTRPCRouter({
   createBatch: protectedProcedure
@@ -12,7 +13,7 @@ export const batchRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      let itemsToCreate: { serialNumber: string; status: string }[] = [];
+      let itemsToCreate: { serialNumber: string; status: ItemStatus }[] = [];
 
       if (input.serialNumbers && input.serialNumbers.length > 0) {
         if (input.serialNumbers.length !== input.quantity) {
@@ -41,7 +42,7 @@ export const batchRouter = createTRPCRouter({
         }
         itemsToCreate = input.serialNumbers.map((serial) => ({
           serialNumber: serial,
-          status: "NOT_STARTED",
+          status: "NOT_STARTED" as ItemStatus,
         }));
       } else {
         // If serial numbers are NOT provided, do not create items yet.
@@ -98,4 +99,39 @@ export const batchRouter = createTRPCRouter({
       };
     });
   }),
+
+  getBatchById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const batch = await ctx.db.batch.findUnique({
+        where: { id: input.id },
+        include: {
+          serializedItems: {
+            orderBy: { serialNumber: 'asc' }, // Or by creation order if preferred
+          },
+        },
+      });
+
+      if (!batch) {
+        throw new Error("Batch not found"); // Or handle as a TRPCError
+      }
+
+      // You can add the same progress calculation here if needed on the detail page
+      const totalItems = batch.quantity;
+      const completedItems = batch.serializedItems.filter(item => item.status === "COMPLETE").length;
+      const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+      return {
+        ...batch,
+        serializedItems: batch.serializedItems.map(item => ({
+          id: item.id,
+          serialNumber: item.serialNumber,
+          status: item.status,
+          currentStage: item.currentStage,
+          // Add any other fields from SerializedItem you need for the detail view
+        })),
+        completedCount: completedItems,
+        progressPercent: progress,
+      };
+    }),
 }); 

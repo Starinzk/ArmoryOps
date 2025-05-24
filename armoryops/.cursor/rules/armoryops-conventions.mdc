@@ -1,0 +1,59 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ArmoryOps Project Conventions
+
+## General
+- **Language:** Primarily TypeScript.
+- **Style:** Adhere to Prettier formatting (already set up). Follow Next.js and React best practices.
+- **File Naming:** Use PascalCase for React components (e.g., `MyComponent.tsx`) and camelCase for other TypeScript files (e.g., `myUtility.ts`), unless a framework convention dictates otherwise (e.g., `page.tsx` in Next.js App Router).
+- **Clarity and Readability:** Prioritize clear, readable, and maintainable code. Add comments for complex logic or non-obvious decisions.
+
+## Frontend (Next.js, React, MUI, Tailwind CSS, tRPC)
+- **Components:**
+    - Prefer functional components with hooks.
+    - Use Material UI (MUI) for core UI components and layout. Leverage `Box`, `Stack`, `Grid`, `Typography`, etc.
+    - shadcn/ui components (like `Progress` here) are also used; integrate them thoughtfully.
+    - Tailwind CSS is available for utility-first styling where appropriate, especially for fine-grained control not easily achieved with MUI's sx prop or styled-components. Ensure Tailwind classes do not excessively clutter JSX.
+    - Strive for responsive design using MUI's breakpoint system and Tailwind's responsive prefixes.
+- **State Management:**
+    - For simple component state, use `useState`.
+    - For cross-component state or more complex scenarios, tRPC with React Query (which tRPC uses under the hood via `api. ... .useQuery` and `api. ... .useMutation`) is the primary method for server state management and caching.
+- **Data Fetching:** Use tRPC hooks (`api. ... .useQuery`, `api. ... .useMutation`) for all backend interactions.
+- **Routing:** Use Next.js App Router (pages typically in `src/app/...`). Navigation should use `next/link` or `useRouter` from `next/navigation`.
+- **MUI Theme:** A custom theme is defined in `src/theme/theme.ts`. Utilize theme colors, typography, and spacing where possible.
+
+## Backend (Node.js, tRPC, Prisma, PostgreSQL)
+- **API:** tRPC routers are defined in `src/server/api/routers/`. Procedures should be well-defined with Zod input validation.
+- **Database:** Prisma is the ORM for interacting with the PostgreSQL database. Schema is in `prisma/schema.prisma`.
+    - When adding or modifying models, ensure to run `prisma generate` and `prisma migrate dev` (or `db:push` for non-production).
+- **Authentication:** Handled by NextAuth.js with Supabase, tRPC procedures are often `protectedProcedure`.
+
+## Code Structure
+- `src/app/`: Next.js App Router pages and layouts.
+- `src/components/`: Reusable React components.
+    - `src/components/layout/`: Layout-specific components (AppBar, NavigationDrawer).
+    - `src/components/ui/`: Likely shadcn/ui components.
+- `src/server/`: Backend code.
+    - `src/server/api/`: tRPC related files.
+    - `src/server/db.ts`: Prisma client instance.
+- `src/lib/`: General utility functions or libraries.
+- `src/styles/`: Global styles.
+- `src/theme/`: MUI theme configuration.
+- `prisma/`: Prisma schema and migration files.
+
+## Important Notes for AI Agent
+- When generating MUI components, ensure imports are correct (e.g., `import Button from '@mui/material/Button';`).
+- For tRPC, ensure procedures are correctly typed and input/output schemas (using Zod) are clear.
+- Remember to invalidate tRPC queries (`utils.invalidate()`) after mutations to ensure UI updates.
+- Pay attention to existing code patterns and try to match the established style.
+- If asked to create new pages or components, follow the existing structure and naming conventions.
+- Assume `protectedProcedure` for most new tRPC routes unless specified otherwise.
+
+---
+## Referenced Files (for context, if needed by AI)
+- @/src/theme/theme.ts
+- @/prisma/schema.prisma
+- @/src/server/api/trpc.ts 
