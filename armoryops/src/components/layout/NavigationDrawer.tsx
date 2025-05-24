@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
@@ -16,6 +17,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import LogoutIcon from '@mui/icons-material/Logout';
+import BuildIcon from '@mui/icons-material/Build';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Toolbar from '@mui/material/Toolbar';
@@ -32,6 +34,7 @@ interface NavigationItem {
 
 const mainNavigationItems: NavigationItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  { text: 'Assembly Station', icon: <BuildIcon />, path: '/assembly-station' },
   { text: 'Account', icon: <AccountCircleIcon />, path: '/account' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications' },
@@ -48,11 +51,12 @@ interface NavigationDrawerProps {
 
 export default function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
   const theme = useTheme();
+  const router = useRouter();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Placeholder for router navigation
   const handleNavigation = (path: string) => {
-    console.log(`Navigating to ${path}`);
+    router.push(path);
     // Replace with your actual router navigation logic, e.g., router.push(path)
     if (isMobile) {
       onClose(); // Close drawer on mobile after navigation
