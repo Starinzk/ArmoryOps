@@ -19,8 +19,8 @@ export function BatchList() {
   return (
     <div className="space-y-4 mt-6">
       {batches.map((batch: BatchFromAPI) => (
-        <Link href={`/batch/${batch.id}`} key={batch.id} passHref legacyBehavior>
-          <Card component="a" sx={{ textDecoration: 'none' }}>
+        <Link href={`/batch/${batch.id}`} key={batch.id} style={{ textDecoration: 'none' }}>
+          <Card sx={{ textDecoration: 'none' }}>
             <CardActionArea>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
