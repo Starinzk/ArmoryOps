@@ -133,7 +133,7 @@ export default function BatchDetailPage() {
                     <Button 
                       variant="contained" 
                       size="small"
-                      onClick={() => router.push(`/unit/${item.id}/assembly`)}
+                      onClick={() => router.push(`/unit/${item.id}/assembly?itemIndex=${index + 1}`)}
                     >
                       {item.currentStage ? 'Continue Assembly' : 'Start Assembly'}
                     </Button>

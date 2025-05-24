@@ -18,8 +18,9 @@ export const assemblyRouter = createTRPCRouter({
               }
             }
           },
-          // We might also want to include batch and product info here if needed on the assembly page
-          // batch: { include: { product: true } } 
+          batch: { // Include batch information
+            select: { name: true } // Specifically select the batch name
+          }
         }
       });
 

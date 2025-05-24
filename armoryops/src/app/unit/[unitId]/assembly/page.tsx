@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api, type RouterOutputs } from '~/trpc/react';
 import {
@@ -18,7 +18,9 @@ import {
   FormControlLabel,
   FormGroup,
   Collapse,
-  TextField
+  TextField,
+  LinearProgress,
+  Chip
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { AssemblyStage } from '@prisma/client';
@@ -59,7 +61,9 @@ type AssemblyPageProps = {};
 export default function AssemblyChecklistPage({}: AssemblyPageProps) {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const unitId = typeof params.unitId === 'string' ? params.unitId : '';
+  const itemIndex = searchParams.get('itemIndex');
 
   const utils = api.useUtils(); // For refetching after mutation
 
@@ -176,6 +180,15 @@ export default function AssemblyChecklistPage({}: AssemblyPageProps) {
   
   const batchId = unitDetails.batchId;
   const currentStagePrisma = unitDetails.currentStage;
+  const batchName = unitDetails.batch?.name;
+
+  // Calculate progress
+  const completedStagesCount = ASSEMBLY_STAGES_ORDER.reduce((count, stage) => {
+    const stageLog = unitDetails.unitStageLogs.find(log => log.stage === stage && log.status === 'COMPLETE');
+    return stageLog ? count + 1 : count;
+  }, 0);
+  const totalStages = ASSEMBLY_STAGES_ORDER.length;
+  const progressPercent = totalStages > 0 ? Math.round((completedStagesCount / totalStages) * 100) : 0;
 
   return (
     <Paper sx={{ p: { xs: 2, md: 3 }, m: { xs: 1, md: 2 } }} elevation={2}>
@@ -186,15 +199,24 @@ export default function AssemblyChecklistPage({}: AssemblyPageProps) {
         sx={{ mb: 2 }}
         disabled={!batchId}
       >
-        Back to Batch {batchId}
+        Back
       </Button>
 
-      <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-        Assembly: Unit {unitDetails.serialNumber}
+      <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+        Assembly: {batchName ? `${batchName}-${itemIndex !== null ? itemIndex : '?'}` : `Unit ${itemIndex || ''}`}
+        <Chip label={unitDetails.serialNumber} size="small" sx={{ ml: 1 }} />
       </Typography>
       <Typography variant="subtitle1" gutterBottom>
         Current Stage: {currentStagePrisma ? currentStagePrisma.replace(/_/g, ' ') : 'Not Started'}
       </Typography>
+
+      {/* Assembly Progress Bar */}
+      <Box sx={{ width: '100%', mt: 1, mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{mb: 0.5}}>
+          Progress: {completedStagesCount} / {totalStages} stages ({progressPercent}%)
+        </Typography>
+        <LinearProgress variant="determinate" value={progressPercent} />
+      </Box>
       
       {mutationError && <Alert severity="error" sx={{mb: 2}}>{mutationError}</Alert>}
       {markCompleteMutation.error && !mutationError && <Alert severity="error" sx={{mb: 2}}>{markCompleteMutation.error.message}</Alert>}
