@@ -24,11 +24,11 @@ import IconButton from '@mui/material/IconButton'; // Import IconButton
 import CloseIcon from '@mui/icons-material/Close'; // Import Close icon
 
 // Placeholder product models - replace with your actual data source
-const productModels = [
-  { id: 'model-a', name: 'Product Model A' },
-  { id: 'model-b', name: 'Product Model B' },
-  { id: 'model-c', name: 'Product Model C' },
-];
+// const productModels = [
+//   { id: 'model-a', name: 'Product Model A' },
+//   { id: 'model-b', name: 'Product Model B' },
+//   { id: 'model-c', name: 'Product Model C' },
+// ];
 
 interface CreateBatchFormProps {
   open: boolean;
@@ -37,7 +37,7 @@ interface CreateBatchFormProps {
 }
 
 export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormProps) {
-  const [productModel, setProductModel] = useState('');
+  const [productId, setProductId] = useState(''); // Changed from productModel to productId
   const [batchNumber, setBatchNumber] = useState(''); // Corresponds to 'name' in API
   const [quantity, setQuantity] = useState<number | ''>(50); // Default to 50 as in design
   const [serialNumbersInput, setSerialNumbersInput] = useState('');
@@ -45,11 +45,14 @@ export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormPro
 
   const utils = api.useUtils();
 
+  const { data: products, isLoading: isLoadingProducts } = api.product.getAllProducts.useQuery();
+
   const createBatchMutation = api.batch.createBatch.useMutation({
     onSuccess: async () => {
       await utils.batch.getAllBatches.invalidate(); // Invalidate batch list to refetch
+      await utils.product.getAllProducts.invalidate(); // Also invalidate products if necessary, though likely not changing here
       // alert('Batch created successfully!'); // Placeholder
-      setProductModel('');
+      setProductId(''); // Changed from setProductModel
       setBatchNumber('');
       setQuantity(50);
       setSerialNumbersInput('');
@@ -67,8 +70,8 @@ export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormPro
     setQuantity(value === '' ? '' : Number(value));
   };
 
-  const handleProductModelChange = (event: SelectChangeEvent<string>) => {
-    setProductModel(event.target.value as string);
+  const handleProductChange = (event: SelectChangeEvent<string>) => { // Renamed from handleProductModelChange
+    setProductId(event.target.value as string); // Changed from setProductModel
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -80,7 +83,7 @@ export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormPro
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
-    if (!productModel) {
+    if (!productId) { // Changed from productModel
       setFormError('Product Model is required.');
       return;
     }
@@ -111,7 +114,7 @@ export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormPro
 
     createBatchMutation.mutate({
       name: batchNumber,
-      productModel,
+      productId, // Changed from productModel
       quantity: Number(quantity), // Ensure quantity is a number
       serialNumbers: serials.length > 0 ? serials : undefined, // Send undefined if no serials
     });
@@ -119,7 +122,7 @@ export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormPro
 
   const handleCloseDialog = () => {
     if (createBatchMutation.isPending) return; // Don't close if submitting
-    setProductModel('');
+    setProductId(''); // Changed from setProductModel
     setBatchNumber('');
     setQuantity(50);
     setSerialNumbersInput('');
@@ -155,21 +158,22 @@ export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormPro
       <DialogContent dividers /* Adds a top divider */ >
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ pt: 1 }}> {/* Add some padding top */}
           <Stack spacing={2.5} /* sx={{ mt: 1 }} removed, using DialogContent padding */ >
-            <FormControl fullWidth required disabled={createBatchMutation.isPending}>
-              <InputLabel id="product-model-select-label">Product Model</InputLabel>
+            <FormControl fullWidth required disabled={createBatchMutation.isPending || isLoadingProducts}>
+              <InputLabel id="product-select-label">Product Model</InputLabel> {/* Changed ID and label slightly for clarity */}
               <Select
-                labelId="product-model-select-label"
-                id="product-model-select"
-                value={productModel}
+                labelId="product-select-label"
+                id="product-select"
+                value={productId} // Changed from productModel
                 label="Product Model"
-                onChange={handleProductModelChange}
+                onChange={handleProductChange} // Changed from handleProductModelChange
               >
                 <MenuItem value="">
                   <em>Select a product model</em>
                 </MenuItem>
-                {productModels.map((model) => (
-                  <MenuItem key={model.id} value={model.name}> {/* Using name as value for now */}
-                    {model.name}
+                {isLoadingProducts && <MenuItem value="" disabled><em>Loading products...</em></MenuItem>}
+                {!isLoadingProducts && products?.map((product) => (
+                  <MenuItem key={product.id} value={product.id}> {/* Use product.id as value */}
+                    {product.name} ({product.modelNumber}) {/* Display name and model number */}
                   </MenuItem>
                 ))}
               </Select>

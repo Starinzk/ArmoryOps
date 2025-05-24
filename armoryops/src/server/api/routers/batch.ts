@@ -7,7 +7,7 @@ export const batchRouter = createTRPCRouter({
     .input(
       z.object({
         name: z.string().min(1),
-        productModel: z.string().min(1),
+        productId: z.string().min(1),
         quantity: z.number().int().positive(),
         serialNumbers: z.array(z.string().min(1)).optional(),
       })
@@ -54,7 +54,7 @@ export const batchRouter = createTRPCRouter({
       const batch = await ctx.db.batch.create({
         data: {
           name: input.name,
-          productModel: input.productModel,
+          productId: input.productId,
           quantity: input.quantity,
           status: "PENDING",
           ...(itemsToCreate.length > 0 && {
@@ -71,7 +71,7 @@ export const batchRouter = createTRPCRouter({
 
   getAllBatches: protectedProcedure.query(async ({ ctx }) => {
     const batches = await ctx.db.batch.findMany({
-      include: { serializedItems: true },
+      include: { serializedItems: true, product: true },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -83,7 +83,7 @@ export const batchRouter = createTRPCRouter({
       return {
         id: batch.id,
         name: batch.name,
-        productModel: batch.productModel,
+        productModel: batch.product.modelNumber,
         quantity: batch.quantity,
         status: batch.status,
         serializedItems: batch.serializedItems.map(item => ({
