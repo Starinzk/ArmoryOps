@@ -83,6 +83,7 @@ export const batchRouter = createTRPCRouter({
       return {
         id: batch.id,
         name: batch.name,
+        productName: batch.product.name,
         productModel: batch.product.modelNumber,
         quantity: batch.quantity,
         status: batch.status,

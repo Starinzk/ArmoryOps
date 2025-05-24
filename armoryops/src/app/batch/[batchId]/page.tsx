@@ -106,6 +106,7 @@ export default function BatchDetailPage() {
           <Table sx={{ minWidth: 650 }} aria-label="simple table of serialized items">
             <TableHead sx={{ backgroundColor: 'grey.100'}}>
               <TableRow>
+                <TableCell sx={{fontWeight: 'bold'}}>Item Number</TableCell>
                 <TableCell sx={{fontWeight: 'bold'}}>Serial Number</TableCell>
                 <TableCell sx={{fontWeight: 'bold'}}>Status</TableCell>
                 <TableCell sx={{fontWeight: 'bold'}}>Current Stage</TableCell>
@@ -113,12 +114,15 @@ export default function BatchDetailPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {batch.serializedItems.map((item) => (
+              {batch.serializedItems.map((item, index) => (
                 <TableRow
                   key={item.id}
                   sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                 >
                   <TableCell component="th" scope="row">
+                    {batch.name}-{index + 1}
+                  </TableCell>
+                  <TableCell>
                     {item.serialNumber}
                   </TableCell>
                   <TableCell>

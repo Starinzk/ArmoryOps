@@ -26,10 +26,10 @@ export function BatchList() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                   <Box>
                     <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-                      {batch.name}
+                      Batch {batch.name}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Product Model: {batch.productModel}
+                      Product: {batch.productName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Status: {batch.status}
