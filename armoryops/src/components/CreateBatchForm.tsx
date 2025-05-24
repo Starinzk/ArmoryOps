@@ -20,6 +20,8 @@ import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper'; // For the info box
 import InfoIcon from '@mui/icons-material/Info'; // For the info icon
+import IconButton from '@mui/material/IconButton'; // Import IconButton
+import CloseIcon from '@mui/icons-material/Close'; // Import Close icon
 
 // Placeholder product models - replace with your actual data source
 const productModels = [
@@ -31,11 +33,10 @@ const productModels = [
 interface CreateBatchFormProps {
   open: boolean;
   onClose: () => void;
-  // We might want to pass the user's email if we want to display it as per design
-  // userEmail?: string; 
+  userEmail?: string;
 }
 
-export function CreateBatchForm({ open, onClose }: CreateBatchFormProps) {
+export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormProps) {
   const [productModel, setProductModel] = useState('');
   const [batchNumber, setBatchNumber] = useState(''); // Corresponds to 'name' in API
   const [quantity, setQuantity] = useState<number | ''>(50); // Default to 50 as in design
@@ -129,13 +130,31 @@ export function CreateBatchForm({ open, onClose }: CreateBatchFormProps) {
 
   return (
     <Dialog open={open} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        Create New Batch
-        {/* TODO: Add user email and close icon as per design if needed */}
+      <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          Create New Batch
+        </Typography>
+        {userEmail && (
+          <Typography variant="caption" sx={{ px: 2, color: 'text.secondary' }}>
+            {userEmail}
+          </Typography>
+        )}
+        <IconButton
+          aria-label="close"
+          onClick={handleCloseDialog} // Use the existing handler
+          sx={{
+            // position: 'absolute', // If you want it absolutely positioned
+            // right: 8,
+            // top: 8,
+            color: (theme) => theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
-      <DialogContent>
-        <Box component="form" onSubmit={handleSubmit} noValidate>
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
+      <DialogContent dividers /* Adds a top divider */ >
+        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ pt: 1 }}> {/* Add some padding top */}
+          <Stack spacing={2.5} /* sx={{ mt: 1 }} removed, using DialogContent padding */ >
             <FormControl fullWidth required disabled={createBatchMutation.isPending}>
               <InputLabel id="product-model-select-label">Product Model</InputLabel>
               <Select

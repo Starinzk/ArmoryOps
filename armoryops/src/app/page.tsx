@@ -9,6 +9,7 @@ import { CreateBatchForm } from '../components/CreateBatchForm';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 
 import { createBrowserClient } from '@supabase/ssr';
 import type { Session } from '@supabase/supabase-js';
@@ -61,14 +62,15 @@ export default function Home() {
         {session?.user ? (
           <Box className="w-full max-w-4xl p-4">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <p>Authenticated! User: {session.user.email}</p>
+              <Typography variant="body1">Welcome, {session.user.email}</Typography>
               <Button variant="contained" onClick={handleOpenCreateBatchModal}>
                   Create New Batch
               </Button>
             </Box>
             <CreateBatchForm 
                 open={openCreateBatchModal} 
-                onClose={handleCloseCreateBatchModal} 
+                onClose={handleCloseCreateBatchModal}
+                userEmail={session.user.email}
             />
             <BatchList />
           </Box>

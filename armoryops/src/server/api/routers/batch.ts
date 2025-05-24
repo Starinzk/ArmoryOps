@@ -71,15 +71,29 @@ export const batchRouter = createTRPCRouter({
   getAllBatches: protectedProcedure.query(async ({ ctx }) => {
     const batches = await ctx.db.batch.findMany({
       include: { serializedItems: true },
+      orderBy: { createdAt: 'desc' },
     });
 
     return batches.map((batch) => {
-      const total = batch.serializedItems.length;
-      const completed = batch.serializedItems.filter(item => item.status === "COMPLETE").length;
-      const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const totalItems = batch.quantity;
+      const completedItems = batch.serializedItems.filter(item => item.status === "COMPLETE").length;
+      const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+      
       return {
-        ...batch,
-        completedCount: completed,
+        id: batch.id,
+        name: batch.name,
+        productModel: batch.productModel,
+        quantity: batch.quantity,
+        status: batch.status,
+        serializedItems: batch.serializedItems.map(item => ({
+          id: item.id,
+          serialNumber: item.serialNumber,
+          status: item.status,
+          currentStage: item.currentStage,
+        })),
+        createdAt: batch.createdAt,
+        updatedAt: batch.updatedAt,
+        completedCount: completedItems,
         progressPercent: progress,
       };
     });
