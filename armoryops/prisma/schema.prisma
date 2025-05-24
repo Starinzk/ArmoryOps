@@ -63,6 +63,7 @@ model User {
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
+    role          UserRole  @default(USER)
 }
 
 model VerificationToken {
@@ -105,4 +106,12 @@ enum ItemStatus {
   NOT_STARTED
   IN_PROGRESS
   COMPLETE
+}
+
+enum UserRole {
+  ADMIN
+  PRODUCTION
+  INVENTORY
+  QC
+  USER
 }

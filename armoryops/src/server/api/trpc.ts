@@ -13,6 +13,9 @@ import { ZodError } from "zod";
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 import { db } from "~/server/db";
+// Attempt to import UserRole directly from $Enums, and User type as well
+import type { User, $Enums } from "@prisma/client";
+type UserRole = $Enums.UserRole; // Define UserRole type alias
 
 /**
  * 1. CONTEXT
@@ -49,10 +52,19 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
   );
 
   const { data: { session } } = await supabase.auth.getSession();
+  
+  let dbUser: User | null = null; 
+  if (session?.user) {
+    // Ensure we fetch the complete User object as defined by Prisma
+    dbUser = await db.user.findUnique({
+      where: { id: session.user.id },
+    }) as User | null; // Explicit cast to ensure full User type
+  }
 
   return {
     db,
-    session,
+    session, // Supabase session, still useful for some things
+    dbUser,  // Full user record from our database, including role
     headers: opts.headers,
   };
 };
@@ -139,15 +151,48 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  *
  * @see https://trpc.io/docs/procedures
  */
+
+// Define a more specific context type for procedures after authentication
+interface AuthedContext extends Awaited<ReturnType<typeof createTRPCContext>> {
+  session: NonNullable<Awaited<ReturnType<typeof createTRPCContext>>['session']>;
+  dbUser: User; // dbUser here must be the full Prisma User type
+}
+
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
-  .use(({ ctx, next }) => {
-    if (!ctx.session?.user) {
+  .use(async ({ ctx, next }) => {
+    if (!ctx.session?.user || !ctx.dbUser) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
+    // Explicitly cast the context for the next middleware
     return next({
-      ctx: {
-        session: ctx.session,
-      },
+      ctx: ctx as AuthedContext,
     });
   });
+
+/**
+ * Middleware for role-based access control.
+ * Takes an array of allowed roles and checks if the current user's role is included.
+ */
+export const createRoleProtectedMiddleware = (allowedRoles: UserRole[]) => {
+  return t.middleware(async ({ ctx, next }) => {
+    // ctx is AuthedContext due to the cast in protectedProcedure
+    // ctx.dbUser should be the full Prisma User object, including 'role'
+    if (!ctx.dbUser.role || !allowedRoles.includes(ctx.dbUser.role)) { 
+      throw new TRPCError({ 
+        code: "FORBIDDEN", 
+        message: `User role (${ctx.dbUser.role ?? 'undefined'}) is not authorized for this procedure. Allowed roles: ${allowedRoles.join(", ")}` 
+      });
+    }
+    return next({
+      ctx: ctx, 
+    });
+  });
+};
+
+// Example of how you might create a procedure that requires ADMIN role:
+// export const adminProcedure = protectedProcedure.use(createRoleProtectedMiddleware(["ADMIN" as UserRole]));
+// Note: Prisma enum types might not be directly usable as string literals for arrays in some TS configs.
+// Explicitly casting or ensuring UserRole is imported and used might be necessary if issues arise.
+// For now, let UserRole be inferred from the Prisma client types in the calling router. 
+// We will need to import UserRole from "@prisma/client" where this middleware is used.
