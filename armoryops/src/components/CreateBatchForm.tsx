@@ -223,7 +223,7 @@ export function CreateBatchForm({ open, onClose, userEmail }: CreateBatchFormPro
               <Alert severity="error" sx={{width: '100%'}}>{formError}</Alert>
             )}
              {createBatchMutation.error && !formError && ( // Show mutation error if not already handled by formError
-              <Alert severity="error" sx={{width: '100%'}}>{createBatchMutation.error.message}</Alert>
+              (<Alert severity="error" sx={{width: '100%'}}>{createBatchMutation.error.message}</Alert>)
             )}
           </Stack>
         </Box>
