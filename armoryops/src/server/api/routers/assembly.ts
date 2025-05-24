@@ -1,9 +1,57 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { AssemblyStageSchema } from "~/schemas/assembly"; // We'll create this schema file next
-import type { AssemblyStage, ItemStatus } from "@prisma/client"; // Added explicit type imports
+import type { AssemblyStage, ItemStatus, Prisma } from "@prisma/client"; // Added Prisma for explicit types
+import { TRPCError } from "@trpc/server"; // Added TRPCError
 
 export const assemblyRouter = createTRPCRouter({
+  getUnitAssemblyProgressBySerial: protectedProcedure
+    .input(z.object({ serialNumber: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const unit = await ctx.db.serializedItem.findUnique({
+        where: { serialNumber: input.serialNumber },
+        include: {
+          batch: { // Include the batch
+            include: {
+              product: { select: { name: true } } // Then include the product from the batch
+            }
+          },
+          unitStageLogs: { orderBy: { timestamp: 'asc' } },
+        },
+      });
+
+      if (!unit) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Unit with serial number '${input.serialNumber}' not found.`,
+        });
+      }
+
+      const allPossibleStages = Object.values(AssemblyStageSchema.enum);
+      const stageStatuses: Record<AssemblyStage, 'not_started' | 'in_progress' | 'complete'> = {} as any;
+
+      for (const stage of allPossibleStages) {
+        const completedLog = unit.unitStageLogs.find(
+          (log) => log.stage === stage && log.status === 'COMPLETE'
+        );
+        if (completedLog) {
+          stageStatuses[stage] = 'complete';
+        } else if (unit.currentStage === stage) {
+          stageStatuses[stage] = 'in_progress';
+        } else {
+          stageStatuses[stage] = 'not_started';
+        }
+      }
+
+      return {
+        id: unit.id,
+        serialNumber: unit.serialNumber,
+        productName: unit.batch.product?.name ?? 'N/A', // Access product name via batch
+        currentStage: unit.currentStage as AssemblyStage, // Assuming currentStage on SerializedItem is AssemblyStage type
+        stages: stageStatuses, // This will be the [key: string]: { status: ... } like structure for the frontend
+      };
+    }),
+
   getAssemblyDetailsByUnitId: protectedProcedure
     .input(z.object({ unitId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -63,9 +111,25 @@ export const assemblyRouter = createTRPCRouter({
           newOverallStatus = 'COMPLETE';
         } else if (currentStageIndex < stageValues.length - 1) {
           newCurrentStage = stageValues[currentStageIndex + 1] as AssemblyStage;
+          newOverallStatus = 'IN_PROGRESS'; // Set to IN_PROGRESS for any other stage completion
         } else {
-          // This case implies currentStageIndex is the last stage, but not PACKAGE_AND_SERIALIZE (should not happen with current enum)
-          // Or stage was not found in enum (should be caught by Zod validation)
+          // This case implies currentStageIndex is the last stage, but not PACKAGE_AND_SERIALIZE
+          // This means it's an intermediate stage, and completing it should also set status to IN_PROGRESS
+          // (unless it was already IN_PROGRESS or COMPLETE).
+          // If it's the last stage before PACKAGE_AND_SERIALIZE, newCurrentStage would be PACKAGE_AND_SERIALIZE
+          // and status should still be IN_PROGRESS.
+          // If newCurrentStage is already correctly set to the next stage or remains the current (if it's the actual last before PACKAGE_AND_SERIALIZE),
+          // we just need to ensure status is IN_PROGRESS.
+          const unit = await prisma.serializedItem.findUnique({ where: { id: unitId }, select: { status: true } });
+          if (unit && unit.status !== 'COMPLETE') { // Don't override if already complete for some reason
+             newOverallStatus = 'IN_PROGRESS';
+          }
+        }
+
+        // Ensure status is IN_PROGRESS if we start the first stage
+        const previousUnitState = await prisma.serializedItem.findUnique({ where: { id: unitId } });
+        if (previousUnitState && previousUnitState.status === 'NOT_STARTED') {
+            newOverallStatus = 'IN_PROGRESS';
         }
 
         return prisma.serializedItem.update({

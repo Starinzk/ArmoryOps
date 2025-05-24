@@ -6,6 +6,17 @@ import { Card, CardActionArea, CardContent } from '@mui/material';
 import { Progress } from "~/components/ui/progress";
 import { Typography, Box } from '@mui/material';
 
+// Helper function to format the batch status
+const formatBatchStatus = (status: string | null | undefined) => {
+  if (status === 'PACKAGE_AND_SERIALIZE') {
+    return 'Packed';
+  }
+  if (status) {
+    return status.replace(/_/g, ' '); // Replace underscores with spaces for other statuses
+  }
+  return 'N/A'; // Default or if status is null/undefined
+};
+
 export function BatchList() {
   const { data: batches, isLoading, error } = api.batch.getAllBatches.useQuery();
 
@@ -32,7 +43,7 @@ export function BatchList() {
                       Product: {batch.productName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Status: {batch.status}
+                      Status: {formatBatchStatus(batch.status)}
                     </Typography>
                   </Box>
                   <Box sx={{ textAlign: 'right' }}>

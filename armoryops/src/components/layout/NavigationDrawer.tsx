@@ -18,6 +18,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import LogoutIcon from '@mui/icons-material/Logout';
 import BuildIcon from '@mui/icons-material/Build';
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Toolbar from '@mui/material/Toolbar';
@@ -34,6 +35,7 @@ interface NavigationItem {
 
 const mainNavigationItems: NavigationItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  { text: 'Batches', icon: <FormatListBulletedIcon />, path: '/' },
   { text: 'Assembly Station', icon: <BuildIcon />, path: '/assembly-station' },
   { text: 'Account', icon: <AccountCircleIcon />, path: '/account' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },

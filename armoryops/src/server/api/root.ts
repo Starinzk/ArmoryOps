@@ -2,6 +2,7 @@ import { postRouter } from "~/server/api/routers/post";
 import { batchRouter } from "~/server/api/routers/batch";
 import { productRouter } from "~/server/api/routers/product";
 import { assemblyRouter } from "~/server/api/routers/assembly";
+import { dashboardRouter } from "~/server/api/routers/dashboard";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
   batch: batchRouter,
   product: productRouter,
   assembly: assemblyRouter,
+  dashboard: dashboardRouter,
 });
 
 // export type definition of API

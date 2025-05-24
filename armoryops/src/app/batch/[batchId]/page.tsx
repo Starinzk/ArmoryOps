@@ -38,6 +38,17 @@ const getStatusChipColor = (status: SerializedItem['status']) => {
   }
 };
 
+// Helper function to format the assembly stage display
+const formatAssemblyStage = (stage: string | null | undefined) => {
+  if (stage === 'PACKAGE_AND_SERIALIZE') {
+    return 'Packed';
+  }
+  if (stage) {
+    return stage.replace(/_/g, ' ');
+  }
+  return 'N/A';
+};
+
 export default function BatchDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -128,14 +139,17 @@ export default function BatchDetailPage() {
                   <TableCell>
                     <Chip label={item.status} color={getStatusChipColor(item.status)} size="small" />
                   </TableCell>
-                  <TableCell>{item.currentStage ?? 'N/A'}</TableCell>
+                  <TableCell>{formatAssemblyStage(item.currentStage)}</TableCell>
                   <TableCell>
                     <Button 
                       variant="contained" 
                       size="small"
                       onClick={() => router.push(`/unit/${item.id}/assembly?itemIndex=${index + 1}`)}
+                      disabled={item.status === 'COMPLETE'}
                     >
-                      {item.currentStage ? 'Continue Assembly' : 'Start Assembly'}
+                      {item.status === 'COMPLETE' 
+                        ? 'Assembly Complete' 
+                        : (item.currentStage ? 'Continue Assembly' : 'Start Assembly')}
                     </Button>
                   </TableCell>
                 </TableRow>

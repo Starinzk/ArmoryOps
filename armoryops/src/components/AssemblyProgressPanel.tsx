@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { api } from '~/trpc/react';
+import { AssemblyStage } from '@prisma/client';
 import {
   Box,
   Paper,
@@ -19,6 +21,9 @@ import {
   Stack,
   CircularProgress,
   useTheme,
+  styled,
+  StepConnector as MuiStepConnector,
+  stepConnectorClasses
 } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
@@ -26,69 +31,54 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
-// Mock data (replace with actual data fetching/props)
-interface UnitData {
+// Define the frontend's expected structure for a unit's assembly progress
+interface UnitAssemblyData {
   id: string;
   serialNumber: string;
   productName: string;
-  currentStage: string; // e.g., 'LAP_AND_CLEAN'
-  stages: {
-    [key: string]: {
-      status: 'not_started' | 'in_progress' | 'complete';
-      checklist?: { id: string; label: string; checked: boolean }[];
-    };
-  };
+  currentStage: AssemblyStage;
+  stages: Record<AssemblyStage, 'not_started' | 'in_progress' | 'complete'>;
 }
 
-const MOCK_STAGES_ORDER = [
-  'LAP_AND_CLEAN',
-  'PIN_EJECTOR',
-  'INSTALL_EXTRACTOR',
-  'FIT_BARREL',
-  'TRIGGER_ASSEMBLY',
-  'BUILD_SLIDE',
-];
-
-const MOCK_UNIT_DATA: UnitData = {
-  id: 'unit123',
-  serialNumber: '130-001',
-  productName: 'GLK-19 Gen 5',
-  currentStage: 'LAP_AND_CLEAN',
-  stages: {
-    LAP_AND_CLEAN: {
-      status: 'in_progress',
-      checklist: [
-        { id: 'lc1', label: 'Lap slide to frame', checked: false },
-        { id: 'lc2', label: 'Clean debris', checked: false },
-      ],
-    },
-    PIN_EJECTOR: {
-      status: 'not_started',
-      checklist: [{ id: 'pe1', label: 'Verify ejector pin', checked: false }],
-    },
-    INSTALL_EXTRACTOR: {
-      status: 'not_started',
-    },
-    FIT_BARREL: {
-        status: 'not_started',
-    },
-    TRIGGER_ASSEMBLY: {
-        status: 'not_started',
-    },
-    BUILD_SLIDE: {
-        status: 'not_started',
-    },
-  },
-};
+// Define the order of assembly stages - this MUST match your Prisma Enum and backend logic
+// It's often better to fetch this from the backend or a shared schema if it can change
+const ASSEMBLY_STAGES_ORDER = Object.values(AssemblyStage);
 
 interface AssemblyProgressPanelProps {
-  // unitData?: UnitData; // Optional: pass unit data directly
-  // onStageComplete?: (unitId: string, stage: string, userId: string) => Promise<void>; // Mock API call
+  // Props if any, e.g., pre-loaded unitId
 }
+
+// Styled StepConnector
+const CustomStepConnector = styled(MuiStepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.alternativeLabel}`]: {
+    top: 10, // Adjust vertical position if needed, to align with StepIcon
+    left: 'calc(-50% + 16px)', // Adjust horizontal positioning
+    right: 'calc(50% + 16px)',
+  },
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      borderColor: theme.palette.primary.main,
+      borderTopWidth: 3,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      borderColor: theme.palette.success.main, // Or theme.palette.primary.main if you prefer consistency
+      borderTopWidth: 3,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    borderColor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : theme.palette.grey[400],
+    borderTopWidth: 3,
+    borderRadius: 1,
+  },
+}));
 
 export default function AssemblyProgressPanel({}: AssemblyProgressPanelProps) {
   const theme = useTheme();
-  const [currentUnit, setCurrentUnit] = useState<UnitData | null>(null);
+  const utils = api.useUtils();
+
+  const [currentUnit, setCurrentUnit] = useState<UnitAssemblyData | null>(null);
   const [serialInput, setSerialInput] = useState('');
   const [isLoadingUnit, setIsLoadingUnit] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
@@ -98,49 +88,139 @@ export default function AssemblyProgressPanel({}: AssemblyProgressPanelProps) {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info'>('success');
 
-  const orderedStageKeys = useMemo(() => {
-    if (!currentUnit) return [];
-    // This should ideally come from a predefined order or unitData itself
-    return MOCK_STAGES_ORDER.filter(stage => currentUnit.stages[stage]);
-  }, [currentUnit]);
+  const assemblyHasStarted = currentUnit && currentUnit.currentStage !== null;
+
+  const { refetch: fetchUnitBySerial } = api.assembly.getUnitAssemblyProgressBySerial.useQuery(
+    { serialNumber: serialInput.trim() },
+    { enabled: false }
+  );
+
+  const markStageCompleteMutation = api.assembly.markStageComplete.useMutation({
+    onSuccess: async (data, variables) => {
+      await utils.batch.getAllBatches.invalidate();
+      if (currentUnit?.serialNumber) { // Ensure currentUnit and serialNumber exist before invalidating
+        await utils.assembly.getUnitAssemblyProgressBySerial.invalidate({serialNumber: currentUnit.serialNumber});
+      }
+      // Invalidate the specific batch details query using the batchId from the mutation response.
+      if (data?.batchId) { 
+        await utils.batch.getBatchById.invalidate({ id: data.batchId });
+      } else {
+        // Fallback or warning if batchId is not in the response for some reason.
+        console.warn("batchId not available from markStageComplete mutation response, BatchDetailPage might not refresh as expected.");
+        // Optionally, you could do a broader invalidation here if critical, e.g.:
+        // await utils.batch.invalidate(); // This invalidates all queries under batch router.
+      }
+      
+      setSnackbarMessage('Stage marked complete & data saved!');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      setIsCompletingStage(false);
+
+      const stageCompleted = variables.stage as AssemblyStage;
+      const completedStageIndex = ASSEMBLY_STAGES_ORDER.indexOf(stageCompleted);
+      const nextStageIndex = completedStageIndex + 1;
+
+      setCurrentUnit(prevUnit => {
+        if (!prevUnit) return null;
+
+        const updatedStages = {
+          ...prevUnit.stages,
+          [stageCompleted]: 'complete' as 'complete',
+        };
+
+        let newCurrentAssemblyStage: AssemblyStage | null = stageCompleted; // Fallback, though should advance
+
+        if (nextStageIndex < ASSEMBLY_STAGES_ORDER.length) {
+          newCurrentAssemblyStage = ASSEMBLY_STAGES_ORDER[nextStageIndex]!;
+          updatedStages[newCurrentAssemblyStage] = 'in_progress' as 'in_progress';
+        } else {
+          // This means the last stage was just completed
+          newCurrentAssemblyStage = stageCompleted; // Keep currentStage as the last completed stage
+                                                // or set to null if you prefer to signify no *active* next stage.
+                                                // Backend should handle overall unit status to COMPLETE.
+        }
+        
+        // If assembly hadn't started (prevUnit.currentStage was null) and we just completed the first stage.
+        // The backend will set the next stage as current, so this logic should align.
+        // The key is that `variables.stage` was the *first* stage passed.
+
+        const initialChecks: Record<string, boolean> = {};
+        if (newCurrentAssemblyStage && ASSEMBLY_STAGES_ORDER.includes(newCurrentAssemblyStage)) {
+          const nextChecklistDefinition = PLACEHOLDER_CHECKLISTS[newCurrentAssemblyStage] ?? [];
+          nextChecklistDefinition.forEach(task => initialChecks[task.id] = false);
+        }
+        setChecklistState(initialChecks);
+
+        return {
+          ...prevUnit,
+          currentStage: newCurrentAssemblyStage,
+          stages: updatedStages,
+        };
+      });
+
+      if (nextStageIndex < ASSEMBLY_STAGES_ORDER.length) {
+        setActiveStep(nextStageIndex);
+      } else {
+        setActiveStep(completedStageIndex); // Stay on the last step if it was completed
+      }
+    },
+    onError: (error) => {
+      setSnackbarMessage(`Error completing stage: ${error.message}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      setIsCompletingStage(false);
+    }
+  });
 
   useEffect(() => {
     if (currentUnit) {
-      const currentStageIndex = orderedStageKeys.indexOf(currentUnit.currentStage);
+      const currentStageIndex = ASSEMBLY_STAGES_ORDER.indexOf(currentUnit.currentStage);
       setActiveStep(currentStageIndex >= 0 ? currentStageIndex : 0);
-
-      const stageData = currentUnit.stages[currentUnit.currentStage];
-      if (stageData?.checklist) {
-        const initialChecks: Record<string, boolean> = {};
-        stageData.checklist.forEach(item => initialChecks[item.id] = item.checked);
-        setChecklistState(initialChecks);
-      }
+      const currentChecklistDefinition = PLACEHOLDER_CHECKLISTS[currentUnit.currentStage] ?? [];
+      const initialChecks: Record<string, boolean> = {};
+      currentChecklistDefinition.forEach(task => initialChecks[task.id] = false);
+      setChecklistState(initialChecks);
     }
-  }, [currentUnit, orderedStageKeys]);
+  }, [currentUnit]);
 
   const handleLoadUnit = async () => {
-    if (!serialInput.trim()) {
-        setSnackbarMessage('Please enter a serial number or item ID.');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-        return;
+    const trimmedSerial = serialInput.trim();
+    if (!trimmedSerial) {
+      setSnackbarMessage('Please enter a serial number.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
     }
     setIsLoadingUnit(true);
-    // --- Mock API call to fetch unit data by serialInput ---
-    await new Promise(resolve => setTimeout(resolve, 1000)); 
-    // Replace with actual API call: e.g., api.assembly.getUnitBySerial.useQuery or a mutation
-    // For mock purposes, allow loading by serial number OR a specific batch-item index like "131-1"
-    if (serialInput === MOCK_UNIT_DATA.serialNumber || serialInput === '131-1') { 
-        setCurrentUnit(MOCK_UNIT_DATA);
-        setSnackbarMessage(`Unit ${MOCK_UNIT_DATA.serialNumber} loaded (input: ${serialInput}).`);
+    try {
+      const result = await fetchUnitBySerial();
+      if (result.data) {
+        setCurrentUnit(result.data);
+        setSnackbarMessage(`Unit ${result.data.serialNumber} loaded.`);
         setSnackbarSeverity('success');
-    } else {
+      } else if (result.error) { // Should be caught by catch block, but defensive
         setCurrentUnit(null);
-        setSnackbarMessage('Unit not found.');
+        setSnackbarMessage(result.error.message || 'Failed to load unit.');
         setSnackbarSeverity('error');
+      }
+    } catch (error: any) {
+      setCurrentUnit(null);
+      setSnackbarMessage(error.message || 'An unexpected error occurred.');
+      setSnackbarSeverity('error');
+    } finally {
+      setSnackbarOpen(true);
+      setIsLoadingUnit(false);
     }
+  };
+
+  const handleClearUnit = () => {
+    setCurrentUnit(null);
+    setSerialInput('');
+    setActiveStep(0);
+    setChecklistState({});
+    setSnackbarMessage('Ready to load new unit.');
+    setSnackbarSeverity('info');
     setSnackbarOpen(true);
-    setIsLoadingUnit(false);
   };
 
   const handleChecklistChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,63 +231,53 @@ export default function AssemblyProgressPanel({}: AssemblyProgressPanelProps) {
   };
 
   const handleMarkStageComplete = async () => {
-    if (!currentUnit || !currentUnit.currentStage) return;
+    if (!currentUnit) return;
 
-    setIsCompletingStage(true);
-    // --- Mock API call ---
-    // await onStageComplete?.(currentUnit.id, currentUnit.currentStage, 'mockUserId');
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-    
-    const currentStageIndex = orderedStageKeys.indexOf(currentUnit.currentStage);
-    const nextStageIndex = currentStageIndex + 1;
+    let stageToMark: AssemblyStage;
+    let checkChecklist = true;
 
-    setCurrentUnit(prevUnit => {
-      if (!prevUnit) return null;
-      const updatedStages = {
-        ...prevUnit.stages,
-        [prevUnit.currentStage]: {
-          ...prevUnit.stages[prevUnit.currentStage],
-          status: 'complete' as 'complete',
-        },
-      };
-      let nextStageKey = prevUnit.currentStage;
-      if (nextStageIndex < orderedStageKeys.length) {
-        nextStageKey = orderedStageKeys[nextStageIndex]!;
-        updatedStages[nextStageKey] = {
-          ...(updatedStages[nextStageKey] || {}),
-          status: 'in_progress' as 'in_progress',
-        };
-         // Reset checklist for the new stage
-        const nextStageData = updatedStages[nextStageKey];
-        if (nextStageData?.checklist) {
-            const initialChecks: Record<string, boolean> = {};
-            nextStageData.checklist.forEach(item => initialChecks[item.id] = false); // Reset to false
-            setChecklistState(initialChecks);
-        }
-      }
-      return {
-        ...prevUnit,
-        currentStage: nextStageKey,
-        stages: updatedStages,
-      };
-    });
-
-    if (nextStageIndex < orderedStageKeys.length) {
-        setActiveStep(nextStageIndex);
+    if (assemblyHasStarted && currentUnit.currentStage) {
+      stageToMark = currentUnit.currentStage;
+    } else if (!assemblyHasStarted && ASSEMBLY_STAGES_ORDER.length > 0) {
+      stageToMark = ASSEMBLY_STAGES_ORDER[0]!;
+      checkChecklist = false; // Don't check checklist for the very first stage if auto-starting
+    } else {
+      // Should not happen if currentUnit is loaded and ASSEMBLY_STAGES_ORDER is populated
+      console.error("Cannot determine stage to mark complete");
+      return;
     }
 
-    setSnackbarMessage('Stage marked complete!');
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-    setIsCompletingStage(false);
+    if (checkChecklist) {
+      const currentChecklistDefinition = PLACEHOLDER_CHECKLISTS[stageToMark] ?? [];
+      const allTasksChecked = currentChecklistDefinition.length > 0 ? currentChecklistDefinition.every(task => checklistState[task.id]) : true;
+      if (!allTasksChecked && currentChecklistDefinition.length > 0) {
+        setSnackbarMessage("All checklist items for the current stage must be completed.");
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+    }
+
+    setIsCompletingStage(true);
+    markStageCompleteMutation.mutate({
+      unitId: currentUnit.id,
+      stage: stageToMark,
+    });
   };
 
-  const currentStageDetails = currentUnit?.stages[currentUnit.currentStage];
-  const currentChecklist = currentStageDetails?.checklist ?? [];
-  const allTasksChecked = currentChecklist.length > 0 ? currentChecklist.every(task => checklistState[task.id]) : true;
+  // Placeholder for checklist data - this should be integrated with backend data if dynamic
+  const PLACEHOLDER_CHECKLISTS: Record<AssemblyStage, {id: string, label: string}[]> = {
+    LAP_AND_CLEAN: [ {id: 'lc1', label: 'Lap slide'}, {id: 'lc2', label: 'Clean'} ],
+    PIN_EJECTOR: [ {id: 'pe1', label: 'Pin ejector'} ],
+    INSTALL_EXTRACTOR: [], FIT_BARREL: [], TRIGGER_ASSEMBLY: [], BUILD_SLIDE: [], ASSEMBLE_LOWER: [], MATE_SLIDE_FRAME: [], FUNCTION_TEST: [], FINAL_QC: [], PACKAGE_AND_SERIALIZE: [],
+  };
 
-  const getStepIcon = (stageKey: string) => {
-    const status = currentUnit?.stages[stageKey]?.status;
+  const currentStageKey = currentUnit?.currentStage;
+  const currentStageData = currentStageKey ? currentUnit?.stages[currentStageKey] : undefined;
+  const currentChecklist = currentStageKey ? (PLACEHOLDER_CHECKLISTS[currentStageKey] ?? []) : [];
+
+  const getStepIcon = (stageKey: AssemblyStage) => {
+    const status = currentUnit?.stages[stageKey];
     if (status === 'complete') return <CheckCircleIcon sx={{ color: 'success.main' }} />;
     if (status === 'in_progress') return <WarningIcon sx={{ color: 'warning.main' }} />;
     return <RadioButtonUncheckedIcon />;
@@ -248,22 +318,21 @@ export default function AssemblyProgressPanel({}: AssemblyProgressPanelProps) {
   }
 
   return (
-    <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, m: { xs: 1, sm: 'auto'}, maxWidth: 700, touchAction: 'pan-y' /* for touchscreens */ }}>
-      <Stack spacing={3}>
-        {/* Top: Serial + Product Name */}
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold' }}>
-            {currentUnit.serialNumber}
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            {currentUnit.productName}
-          </Typography>
-        </Box>
+    <>
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, m: { xs: 1, sm: 'auto'}, maxWidth: 700, touchAction: 'pan-y' }}>
+        <Stack spacing={3}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold' }}>
+              {currentUnit.serialNumber}
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 1 }}>
+              {currentUnit.productName}
+            </Typography>
+          </Box>
 
-        {/* Middle: Current Stage Card */}
-        <Paper variant="outlined" sx={{ p: 2, borderColor: currentStageDetails?.status === 'in_progress' ? 'warning.main' : 'divider' }}>
-            <Typography variant="h6" component="h2" gutterBottom sx={{ color: currentStageDetails?.status === 'in_progress' ? 'warning.main' : 'inherit'}}>
-                Current Stage: {currentUnit.currentStage.replace(/_/g, ' ')}
+          <Paper variant="outlined" sx={{ p: 2, borderColor: currentUnit.stages[currentUnit.currentStage] === 'in_progress' ? 'warning.main' : 'divider' }}>
+            <Typography variant="h6" component="h2" gutterBottom sx={{ color: currentUnit.stages[currentUnit.currentStage] === 'in_progress' ? 'warning.main' : 'inherit'}}>
+                Current Stage: {currentUnit.currentStage ? currentUnit.currentStage.replace(/_/g, ' ') : 'N/A'}
             </Typography>
             {currentChecklist.length > 0 && (
             <Box sx={{ mb: 2 }}>
@@ -274,7 +343,7 @@ export default function AssemblyProgressPanel({}: AssemblyProgressPanelProps) {
                     key={item.id}
                     control={<Checkbox checked={checklistState[item.id] || false} onChange={handleChecklistChange} name={item.id} sx={{p: '4px'}}/>}
                     label={item.label}
-                    sx={{ mb: 0.5, '& .MuiFormControlLabel-label': {fontSize: '0.95rem'} }} // Ensure touch target by label padding
+                    sx={{ mb: 0.5, '& .MuiFormControlLabel-label': {fontSize: '0.95rem'} }} 
                     />
                 ))}
                 </FormGroup>
@@ -286,34 +355,68 @@ export default function AssemblyProgressPanel({}: AssemblyProgressPanelProps) {
                 size="large"
                 onClick={handleMarkStageComplete}
                 loading={isCompletingStage}
-                disabled={!allTasksChecked || isCompletingStage || currentStageDetails?.status === 'complete'}
+                disabled={(() => {
+                  if (isCompletingStage) return true;
+                  if (!assemblyHasStarted || !currentUnit?.currentStage) {
+                    // If assembly hasn't started or currentStage is somehow null (shouldn't happen if assemblyHasStarted is true)
+                    // only isCompletingStage (checked above) should disable it.
+                    return false; 
+                  }
+                  // Assembly has started and currentStage is valid
+                  if (currentUnit.stages[currentUnit.currentStage] === 'complete') return true;
+                  
+                  const checklist = PLACEHOLDER_CHECKLISTS[currentUnit.currentStage] ?? [];
+                  if (checklist.length > 0) {
+                    const allChecked = checklist.every(task => !!checklistState[task.id]);
+                    if (!allChecked) return true;
+                  }
+                  return false; // Default to not disabled if no other conditions met
+                })()}
                 fullWidth
-                sx={{ minHeight: '48px'}} // Ensure touch target size
+                sx={{ minHeight: '48px'}}
             >
-                {currentStageDetails?.status === 'complete' ? 'Stage Already Completed' : 'Mark Current Stage Complete'}
+              {!assemblyHasStarted 
+                ? (ASSEMBLY_STAGES_ORDER.length > 0 ? `Start Assembly (Begin ${ASSEMBLY_STAGES_ORDER[0]!.replace(/_/g, ' ')})` : 'No Stages Defined')
+                : (currentUnit?.currentStage && currentUnit.stages[currentUnit.currentStage] === 'complete' 
+                    ? 'Stage Already Completed' 
+                    : `Mark ${currentUnit?.currentStage?.replace(/_/g, ' ') ?? 'Current Stage'} Complete`)
+              }
             </LoadingButton>
-        </Paper>
+          </Paper>
 
-        {/* Bottom: Stepper showing overall stage progress */}
-        <Box>
-          <Typography variant="h6" gutterBottom sx={{ mb: 2}}>Overall Progress</Typography>
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {orderedStageKeys.map((label, index) => (
-              <Step key={label} completed={currentUnit.stages[label]?.status === 'complete'}>
-                <StepLabel StepIconComponent={() => getStepIcon(label)}>
-                  {label.replace(/_/g, ' ')}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-        </Box>
-      </Stack>
+          <Box>
+            <Typography variant="h6" gutterBottom sx={{ mb: 2}}>Overall Progress</Typography>
+            <Box sx={{ overflowX: 'auto', pb: 1 }}>
+              <Stepper activeStep={activeStep} alternativeLabel connector={<CustomStepConnector />}>
+                {ASSEMBLY_STAGES_ORDER.map((stageKey) => (
+                  <Step key={stageKey} completed={currentUnit.stages[stageKey] === 'complete'}>
+                    <StepLabel StepIconComponent={() => getStepIcon(stageKey)}>
+                      {stageKey ? stageKey.replace(/_/g, ' ') : 'Unknown Stage'}
+                    </StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+            </Box>
+          </Box>
+        </Stack>
 
-      <Snackbar open={snackbarOpen} autoHideDuration={4000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center'}}>
-        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-    </Paper>
+        <Snackbar open={snackbarOpen} autoHideDuration={4000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center'}}>
+          <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+      </Paper>
+
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 2 }}>
+        <Button 
+          variant="outlined" 
+          color="secondary" 
+          size="medium" 
+          onClick={handleClearUnit}
+        >
+          Load Different Unit
+        </Button>
+      </Box>
+    </>
   );
 } 
