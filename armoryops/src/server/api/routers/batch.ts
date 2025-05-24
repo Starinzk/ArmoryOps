@@ -109,6 +109,7 @@ export const batchRouter = createTRPCRouter({
           serializedItems: {
             orderBy: { serialNumber: 'asc' }, // Or by creation order if preferred
           },
+          product: true,
         },
       });
 
@@ -123,6 +124,7 @@ export const batchRouter = createTRPCRouter({
 
       return {
         ...batch,
+        productModel: batch.product.modelNumber,
         serializedItems: batch.serializedItems.map(item => ({
           id: item.id,
           serialNumber: item.serialNumber,

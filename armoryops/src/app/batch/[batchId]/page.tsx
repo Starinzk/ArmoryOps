@@ -74,8 +74,8 @@ export default function BatchDetailPage() {
 
   return (
     <Paper sx={{ p: { xs: 2, md: 3 }, m: { xs: 1, md: 2 } }} elevation={2}>
-      <Link href="/" passHref legacyBehavior>
-        <Button component="a" variant="outlined" startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>
+      <Link href="/">
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>
           Back to Batches
         </Button>
       </Link>
