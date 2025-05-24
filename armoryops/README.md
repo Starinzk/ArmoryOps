@@ -18,7 +18,10 @@ A modern web application for managing firearm assembly batches and serialized it
 - 📦 Batch management system for firearm assembly
 - 🔢 Serial number tracking
 - 📊 Progress tracking and visualization
-- 🎨 Modern, responsive UI with shadcn/ui
+- ✨ Assembly Checklist flow for individual units
+- 🏭 Assembly Station panel for rapid stage progression
+- 📈 Assembly Dashboard for key metrics (WIP, Completions, Rejections)
+- 🎨 Modern, responsive UI with shadcn/ui & Material UI
 - 🔒 Protected API routes with tRPC
 
 ## Prerequisites
@@ -112,25 +115,27 @@ The batch system allows tracking of firearm assembly with the following features
 - View batch status and completion percentage
 - Prevent duplicate serial numbers
 
+## Assembly Checklist & Station
+
+- **Assembly Checklist Page (`/unit/[unitId]/assembly`):** Allows users to step through predefined assembly stages for a specific serialized item, view stage history, and mark stages as complete or rejected.
+- **Assembly Progress Panel (`/assembly-station`):** A dedicated interface for assemblers to quickly load units (by serial number or batch-item index) and advance them through assembly stages. Features include checklist integration, one-button stage completion, and auto-advance to the next stage.
+
+## Assembly Dashboard
+
+The application includes a dashboard to provide insights into the assembly process.
+
+- **Access:** Available at `/dashboard`.
+- **Metrics Displayed:**
+    - **Units Completed:** Total units marked as `COMPLETE`.
+    - **Units In Progress:** Total units with status `IN_PROGRESS`.
+    - **Total Rejections:** Total count of `UnitStageLog` entries marked `REJECTED`.
+    - **Work In Progress by Stage:** A bar chart showing the number of units currently at each assembly stage.
+    - **Rejections by Stage:** A bar chart displaying the number of rejections for each assembly stage.
+- **Time Period Filtering:** Most metrics can be filtered by "Today", "This Week", or "All Time".
+- **Technology:** Uses tRPC procedures for data fetching and Material UI components for display.
+
 ## API Documentation
 
 ### Batch Endpoints
 
-- `batch.createBatch`: Create a new batch with serialized items
-- `batch.getAllBatches`: Get all batches with their items and progress
-
-### Authentication Endpoints
-
-- `auth.signIn`: Sign in with email/password
-- `auth.signUp`: Create a new account
-- `auth.resetPassword`: Reset password via email
-
-## Contributing
-
-1. Create a new branch for your feature
-2. Make your changes
-3. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
+- `
