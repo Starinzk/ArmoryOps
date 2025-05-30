@@ -2,6 +2,8 @@
 
 A modern web application for managing firearm assembly, batch tracking, and serialized item lifecycles. Built with Next.js, Prisma, tRPC, and Material UI.
 
+See full project overview and specs here https://www.notion.so/ArmoryOps-201a50c2d49f80699037e71089021417
+
 ## Overview
 
 ArmoryOps is designed to streamline the firearm assembly process, providing tools for:
